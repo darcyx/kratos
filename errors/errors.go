@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/status"
@@ -17,6 +18,8 @@ const (
 	UnknownReason = ""
 	// SupportPackageIsVersion1 this constant should not be referenced by any other code.
 	SupportPackageIsVersion1 = true
+	// OriginalCodeKey is the key for storing original error code in metadata.
+	OriginalCodeKey = "original_code"
 )
 
 // Error is a status error.
@@ -56,10 +59,18 @@ func (e *Error) WithMetadata(md map[string]string) *Error {
 
 // GRPCStatus returns the Status represented by se.
 func (e *Error) GRPCStatus() *status.Status {
+	// Create a copy of metadata and store original error code
+	metadata := make(map[string]string)
+	for k, v := range e.Metadata {
+		metadata[k] = v
+	}
+	// Store original error code in metadata for later recovery
+	metadata[OriginalCodeKey] = fmt.Sprintf("%d", e.Code)
+
 	s, _ := status.New(httpstatus.ToGRPCCode(int(e.Code)), e.Message).
 		WithDetails(&errdetails.ErrorInfo{
 			Reason:   e.Reason,
-			Metadata: e.Metadata,
+			Metadata: metadata,
 		})
 	return s
 }
@@ -145,6 +156,13 @@ func FromError(err error) *Error {
 		switch d := detail.(type) {
 		case *errdetails.ErrorInfo:
 			ret.Reason = d.Reason
+			// Check if original error code is stored in metadata
+			if originalCodeStr, exists := d.Metadata[OriginalCodeKey]; exists {
+				// Try to parse and restore original error code
+				if originalCode, err := strconv.Atoi(originalCodeStr); err == nil {
+					ret.Code = int32(originalCode)
+				}
+			}
 			return ret.WithMetadata(d.Metadata)
 		}
 	}

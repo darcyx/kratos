@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 
@@ -11,11 +10,11 @@ import (
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/go-kratos/kratos/cmd/protoc-gen-go-errors/v2/errors"
+	"github.com/darcyx/kratos/cmd/protoc-gen-go-errors/v2/errors"
 )
 
 const (
-	errorsPackage = protogen.GoImportPath("github.com/go-kratos/kratos/v2/errors")
+	errorsPackage = protogen.GoImportPath("github.com/darcyx/kratos/v2/errors")
 	fmtPackage    = protogen.GoImportPath("fmt")
 )
 
@@ -65,9 +64,7 @@ func genErrorsReason(_ *protogen.Plugin, _ *protogen.File, g *protogen.Generated
 	if ok := defaultCode.(int32); ok != 0 {
 		code = int(ok)
 	}
-	if code > 600 || code < 0 {
-		panic(fmt.Sprintf("Enum '%s' range must be greater than 0 and less than or equal to 600", string(enum.Desc.Name())))
-	}
+
 	var ew errorWrapper
 	for _, v := range enum.Values {
 		enumCode := code
@@ -75,11 +72,7 @@ func genErrorsReason(_ *protogen.Plugin, _ *protogen.File, g *protogen.Generated
 		if ok := eCode.(int32); ok != 0 {
 			enumCode = int(ok)
 		}
-		// If the current enumeration does not contain 'errors.code'
-		// or the code value exceeds the range, the current enum will be skipped
-		if enumCode > 600 || enumCode < 0 {
-			panic(fmt.Sprintf("Enum '%s' range must be greater than 0 and less than or equal to 600", string(v.Desc.Name())))
-		}
+		// If the current enumeration does not contain 'errors.code', skip it
 		if enumCode == 0 {
 			continue
 		}

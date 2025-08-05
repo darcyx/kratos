@@ -147,3 +147,40 @@ func TestOther(t *testing.T) {
 		t.Errorf("Clone(nil) = %v, want %v", Clone(err400), err400)
 	}
 }
+
+func TestFromErrorPreservesOriginalCode(t *testing.T) {
+	// Test that FromError preserves original error code when converting from gRPC status
+	originalCode := 10001 // Custom error code
+	originalReason := "CUSTOM_ERROR"
+	originalMessage := "This is a custom error"
+
+	// Create an error with custom code
+	err := New(originalCode, originalReason, originalMessage)
+
+	// Convert to gRPC status
+	grpcStatus := err.GRPCStatus()
+
+	// Convert back to Error using FromError
+	recoveredErr := FromError(grpcStatus.Err())
+
+	// Verify that the original code is preserved
+	if recoveredErr.Code != int32(originalCode) {
+		t.Errorf("Expected code %d, but got %d", originalCode, recoveredErr.Code)
+	}
+
+	// Verify other fields are also preserved
+	if recoveredErr.Reason != originalReason {
+		t.Errorf("Expected reason %s, but got %s", originalReason, recoveredErr.Reason)
+	}
+
+	if recoveredErr.Message != originalMessage {
+		t.Errorf("Expected message %s, but got %s", originalMessage, recoveredErr.Message)
+	}
+
+	// Verify that metadata contains the original code
+	if originalCodeInMeta, exists := recoveredErr.Metadata[OriginalCodeKey]; !exists {
+		t.Error("Original code should be stored in metadata")
+	} else if originalCodeInMeta != fmt.Sprintf("%d", originalCode) {
+		t.Errorf("Expected original code in metadata to be %d, but got %s", originalCode, originalCodeInMeta)
+	}
+}
